@@ -28,25 +28,12 @@ jobs:
         run: |
           sdkmanager --install "platforms;android-34" "build-tools;34.0.0" "platform-tools"
 
-      - name: Locate Project & Build APK
+      - name: Build APK
         run: |
-          # Dhoondo ki app/build.gradle.kts kahan par hai
-          APP_PATH=$(find . -name "build.gradle.kts" | grep "app/build.gradle.kts" | head -n 1)
-          
-          if [ -z "$APP_PATH" ]; then
-            # Agar app/build.gradle.kts na mile to general build.gradle.kts dhoondo
-            APP_PATH=$(find . -name "build.gradle.kts" | head -n 1)
-          fi
-
-          # Real Project Root Director par jao
-          PROJECT_ROOT=$(dirname $(dirname "$APP_PATH"))
-          echo "Navigating to actual project root: $PROJECT_ROOT"
-          cd "$PROJECT_ROOT"
-
           # Clean up old settings file
           rm -f settings.gradle settings.gradle.kts
 
-          # Create fresh settings.gradle.kts
+          # Generate clean and valid settings.gradle.kts
           cat << 'EOF' > settings.gradle.kts
           pluginManagement {
               repositories {
@@ -63,9 +50,7 @@ jobs:
               }
           }
           rootProject.name = "NovaPlay"
-          if [ -d "app" ]; then
-              include(":app")
-          fi
+          include(":app")
           EOF
 
           # Environment files setup
@@ -78,15 +63,11 @@ jobs:
           chmod +x gradlew
 
           # Build Debug APK
-          if [ -d "app" ]; then
-            ./gradlew :app:assembleDebug --no-daemon -Pandroid.overrideVersionCheck=true -Pandroid.suppressUnsupportedCompileSdk=36
-          else
-            ./gradlew assembleDebug --no-daemon -Pandroid.overrideVersionCheck=true -Pandroid.suppressUnsupportedCompileSdk=36
-          fi
+          ./gradlew :app:assembleDebug --no-daemon -Pandroid.overrideVersionCheck=true -Pandroid.suppressUnsupportedCompileSdk=36
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: NovaPlay-vidiopen-debug-apk
-          path: '**/*.apk'
+          path: 'app/build/outputs/apk/debug/*.apk'
           
