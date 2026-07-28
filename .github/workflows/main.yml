@@ -1,4 +1,4 @@
-name: Build Android APK
+name: Build Play Store Release AAB & APK
 
 on:
   push:
@@ -28,15 +28,15 @@ jobs:
         run: |
           sdkmanager --install "platforms;android-34" "build-tools;34.0.0" "platform-tools"
 
-      - name: Extract ZIP File & Generate Keystore
+      - name: Extract ZIP & Generate Release Keystore
         run: |
-          # 1. Unzip novaplay.zip
+          # 1. Extract Zip File
           if [ -f "novaplay.zip" ]; then
             echo "Unzipping novaplay.zip..."
             unzip -o novaplay.zip
           fi
 
-          # 2. Project location find karo
+          # 2. Locate Project Directory
           GRADLE_FILE=$(find . -name "build.gradle.kts" -o -name "build.gradle" | head -n 1)
           if [ -n "$GRADLE_FILE" ]; then
             TARGET_DIR=$(dirname "$GRADLE_FILE")
@@ -47,7 +47,7 @@ jobs:
             fi
           fi
 
-          # 3. Create fresh settings.gradle.kts
+          # 3. Setup settings.gradle.kts
           rm -f settings.gradle settings.gradle.kts
           cat << 'EOF' > settings.gradle.kts
           pluginManagement {
@@ -70,32 +70,49 @@ jobs:
           }
           EOF
 
-          # 4. Generate Debug Keystore file if missing
-          mkdir -p ~/.android
-          keytool -genkey -v -keystore ~/.android/debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
-          
-          # Root directory aur app directory dono me copy kar do
-          cp ~/.android/debug.keystore debug.keystore 2>/dev/null || true
-          [ -d "app" ] && cp ~/.android/debug.keystore app/debug.keystore 2>/dev/null || true
+          # 4. Generate Production Keystore with Password 'Abhay2008'
+          mkdir -p keystore_backup
+          keytool -genkey -v \
+            -keystore keystore_backup/release.keystore \
+            -alias novaplay_key \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -storepass Abhay2008 \
+            -keypass Abhay2008 \
+            -dname "CN=Abhay, OU=NovaPlay, O=NovaPlay, L=India, ST=India, C=IN"
+
+          # Copy keystore to app directory and root
+          cp keystore_backup/release.keystore release.keystore
+          [ -d "app" ] && cp keystore_backup/release.keystore app/release.keystore || true
 
           # 5. Environment Properties
           touch local.properties
           echo "sdk.dir=$ANDROID_HOME" > local.properties
           echo "GEMINI_API_KEY=dummy_key" > .env
 
-          # 6. Wrapper & Build APK
+          # 6. Wrapper Setup
           gradle wrapper --gradle-version 8.7
           chmod +x gradlew
 
+          # 7. Build Both Release AAB (for Play Store) and Release APK (for testing)
           if [ -d "app" ]; then
-            ./gradlew :app:assembleDebug --no-daemon -Pandroid.overrideVersionCheck=true -Pandroid.suppressUnsupportedCompileSdk=36
+            ./gradlew :app:bundleRelease :app:assembleRelease --no-daemon -Pandroid.overrideVersionCheck=true -Pandroid.suppressUnsupportedCompileSdk=36 || ./gradlew :app:assembleRelease --no-daemon
           else
-            ./gradlew assembleDebug --no-daemon -Pandroid.overrideVersionCheck=true -Pandroid.suppressUnsupportedCompileSdk=36
+            ./gradlew bundleRelease assembleRelease --no-daemon -Pandroid.overrideVersionCheck=true -Pandroid.suppressUnsupportedCompileSdk=36 || ./gradlew assembleRelease --no-daemon
           fi
 
-      - name: Upload APK Artifact
+      - name: Upload Play Store AAB & APK Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: NovaPlay-vidiopen-debug-apk
-          path: '**/*.apk'
+          name: NovaPlay-PlayStore-Release-Bundle
+          path: |
+            **/*.aab
+            **/*.apk
+
+      - name: Upload Keystore Backup (Important for Play Store Updates)
+        uses: actions/upload-artifact@v4
+        with:
+          name: NovaPlay-Keystore-Backup
+          path: keystore_backup/release.keystore
           
