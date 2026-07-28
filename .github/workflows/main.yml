@@ -28,7 +28,7 @@ jobs:
         run: |
           sdkmanager --install "platforms;android-34" "build-tools;34.0.0" "platform-tools"
 
-      - name: Extract ZIP & Generate Release Keystore
+      - name: Extract ZIP & Generate Exact Required Keystore
         run: |
           # 1. Extract Zip File
           if [ -f "novaplay.zip" ]; then
@@ -70,10 +70,10 @@ jobs:
           }
           EOF
 
-          # 4. Generate Production Keystore with Password 'Abhay2008'
+          # 4. Generate my-upload-key.jks with Password 'Abhay2008'
           mkdir -p keystore_backup
           keytool -genkey -v \
-            -keystore keystore_backup/release.keystore \
+            -keystore keystore_backup/my-upload-key.jks \
             -alias novaplay_key \
             -keyalg RSA \
             -keysize 2048 \
@@ -82,24 +82,24 @@ jobs:
             -keypass Abhay2008 \
             -dname "CN=Abhay, OU=NovaPlay, O=NovaPlay, L=India, ST=India, C=IN"
 
-          # Copy keystore to app directory and root
-          cp keystore_backup/release.keystore release.keystore
-          [ -d "app" ] && cp keystore_backup/release.keystore app/release.keystore || true
+          # Copy to root and app folder as required by build.gradle.kts
+          cp keystore_backup/my-upload-key.jks my-upload-key.jks
+          [ -d "app" ] && cp keystore_backup/my-upload-key.jks app/my-upload-key.jks || true
 
           # 5. Environment Properties
           touch local.properties
           echo "sdk.dir=$ANDROID_HOME" > local.properties
           echo "GEMINI_API_KEY=dummy_key" > .env
 
-          # 6. Wrapper Setup
+          # 6. Wrapper Setup with Gradle 8.7
           gradle wrapper --gradle-version 8.7
           chmod +x gradlew
 
-          # 7. Build Both Release AAB (for Play Store) and Release APK (for testing)
+          # 7. Build Play Store AAB & Release APK
           if [ -d "app" ]; then
-            ./gradlew :app:bundleRelease :app:assembleRelease --no-daemon -Pandroid.overrideVersionCheck=true -Pandroid.suppressUnsupportedCompileSdk=36 || ./gradlew :app:assembleRelease --no-daemon
+            ./gradlew :app:bundleRelease :app:assembleRelease --no-daemon -Pandroid.overrideVersionCheck=true -Pandroid.suppressUnsupportedCompileSdk=36
           else
-            ./gradlew bundleRelease assembleRelease --no-daemon -Pandroid.overrideVersionCheck=true -Pandroid.suppressUnsupportedCompileSdk=36 || ./gradlew assembleRelease --no-daemon
+            ./gradlew bundleRelease assembleRelease --no-daemon -Pandroid.overrideVersionCheck=true -Pandroid.suppressUnsupportedCompileSdk=36
           fi
 
       - name: Upload Play Store AAB & APK Artifacts
@@ -110,9 +110,9 @@ jobs:
             **/*.aab
             **/*.apk
 
-      - name: Upload Keystore Backup (Important for Play Store Updates)
+      - name: Upload Keystore Backup
         uses: actions/upload-artifact@v4
         with:
           name: NovaPlay-Keystore-Backup
-          path: keystore_backup/release.keystore
+          path: keystore_backup/my-upload-key.jks
           
