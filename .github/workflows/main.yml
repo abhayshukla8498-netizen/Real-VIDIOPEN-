@@ -33,7 +33,7 @@ jobs:
           # Clean old settings files
           rm -f settings.gradle settings.gradle.kts
 
-          # Create fresh settings.gradle.kts with explicit app module
+          # Root project settings ONLY (NO :app module inclusion)
           cat << 'EOF' > settings.gradle.kts
           pluginManagement {
               repositories {
@@ -50,7 +50,6 @@ jobs:
               }
           }
           rootProject.name = "NovaPlay"
-          include(":app")
           EOF
 
           # Setup local properties & environment variables
@@ -58,13 +57,13 @@ jobs:
           echo "sdk.dir=$ANDROID_HOME" > local.properties
           echo "GEMINI_API_KEY=dummy_key" > .env
 
-          # Generate Gradle Wrapper
+          # Download Gradle Wrapper
           gradle wrapper --gradle-version 8.4
           chmod +x gradlew
 
       - name: Build Debug APK
         run: |
-          ./gradlew :app:assembleDebug \
+          ./gradlew assembleDebug \
             --no-daemon \
             -Pandroid.overrideVersionCheck=true \
             -Pandroid.suppressUnsupportedCompileSdk=36
@@ -73,5 +72,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: NovaPlay-vidiopen-debug-apk
-          path: 'app/build/outputs/apk/debug/*.apk'
+          path: '**/*.apk'
           
