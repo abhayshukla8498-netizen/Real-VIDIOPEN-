@@ -23,19 +23,7 @@ jobs:
 
       - name: Setup Project Files
         run: |
-          # Dhoondo ki app/build.gradle.kts kahan hai
-          APP_DIR=$(dirname $(find . -name "build.gradle.kts" | grep "app" | head -n 1))
-          
-          if [ -z "$APP_DIR" ]; then
-            PROJECT_ROOT="."
-          else
-            PROJECT_ROOT=$(dirname "$APP_DIR")
-          fi
-          
-          echo "Project root is: $PROJECT_ROOT"
-          cd "$PROJECT_ROOT"
-
-          # agar settings.gradle.kts nahi hai toh ise create kar do
+          # Agar root ya subfolder me settings.gradle missing hai toh generate karein
           if [ ! -f "settings.gradle.kts" ] && [ ! -f "settings.gradle" ]; then
             echo 'pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }' > settings.gradle.kts
             echo 'dependencyResolutionManagement { repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS); repositories { google(); mavenCentral() } }' >> settings.gradle.kts
@@ -43,18 +31,20 @@ jobs:
             echo 'include(":app")' >> settings.gradle.kts
           fi
 
-          # Env files setup
+          # Env aur properties files setup
           touch local.properties
           echo "GEMINI_API_KEY=dummy_key" > .env
 
-          # Wrapper generator and build
+          # Wrapper generate karke execute permission dena
           gradle wrapper
           chmod +x gradlew
-          ./gradlew assembleDebug --stacktrace
+
+      - name: Build APK with Gradle
+        run: ./gradlew assembleDebug --stacktrace
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: NovaPlay-vidiopen-debug-apk
-          path: '/**/app/build/outputs/apk/debug/*.apk'
+          path: '**/build/outputs/apk/debug/*.apk'
           
