@@ -28,17 +28,16 @@ jobs:
         run: |
           sdkmanager --install "platforms;android-34" "build-tools;34.0.0" "platform-tools"
 
-      - name: Extract ZIP File & Build
+      - name: Extract ZIP File & Generate Keystore
         run: |
-          # 1. Unzip the novaplay.zip file
+          # 1. Unzip novaplay.zip
           if [ -f "novaplay.zip" ]; then
             echo "Unzipping novaplay.zip..."
             unzip -o novaplay.zip
           fi
 
-          # 2. Dhoondo ki app/build.gradle.kts kahan extract hua
+          # 2. Project location find karo
           GRADLE_FILE=$(find . -name "build.gradle.kts" -o -name "build.gradle" | head -n 1)
-          
           if [ -n "$GRADLE_FILE" ]; then
             TARGET_DIR=$(dirname "$GRADLE_FILE")
             if [ "$(basename "$TARGET_DIR")" = "app" ]; then
@@ -71,16 +70,23 @@ jobs:
           }
           EOF
 
-          # 4. Setup environment properties
+          # 4. Generate Debug Keystore file if missing
+          mkdir -p ~/.android
+          keytool -genkey -v -keystore ~/.android/debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+          
+          # Root directory aur app directory dono me copy kar do
+          cp ~/.android/debug.keystore debug.keystore 2>/dev/null || true
+          [ -d "app" ] && cp ~/.android/debug.keystore app/debug.keystore 2>/dev/null || true
+
+          # 5. Environment Properties
           touch local.properties
           echo "sdk.dir=$ANDROID_HOME" > local.properties
           echo "GEMINI_API_KEY=dummy_key" > .env
 
-          # 5. Generate Wrapper with Gradle 8.7
+          # 6. Wrapper & Build APK
           gradle wrapper --gradle-version 8.7
           chmod +x gradlew
 
-          # 6. Execute Build
           if [ -d "app" ]; then
             ./gradlew :app:assembleDebug --no-daemon -Pandroid.overrideVersionCheck=true -Pandroid.suppressUnsupportedCompileSdk=36
           else
