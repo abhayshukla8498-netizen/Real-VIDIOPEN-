@@ -24,13 +24,13 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Install Android SDK Components
+      - name: Install Android SDK Platforms
         run: |
-          sdkmanager --install "platforms;android-36" "build-tools;36.0.0" "platform-tools"
+          sdkmanager --install "platforms;android-34" "build-tools;34.0.0" "platform-tools"
 
-      - name: Setup Project & Config Files
+      - name: Setup Project Configs
         run: |
-          # Create settings.gradle.kts if missing
+          # Generate settings.gradle.kts if missing
           if [ ! -f "settings.gradle.kts" ] && [ ! -f "settings.gradle" ]; then
             echo 'pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }' > settings.gradle.kts
             echo 'dependencyResolutionManagement { repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS); repositories { google(); mavenCentral() } }' >> settings.gradle.kts
@@ -45,12 +45,12 @@ jobs:
           echo "sdk.dir=$ANDROID_HOME" > local.properties
           echo "GEMINI_API_KEY=dummy_key" > .env
 
-          # Generate Gradle Wrapper
-          gradle wrapper --gradle-version 8.7
+          # Download clean Gradle Wrapper version 8.4
+          gradle wrapper --gradle-version 8.4
           chmod +x gradlew
 
-      - name: Build APK with Gradle
-        run: ./gradlew assembleDebug --no-daemon --stacktrace
+      - name: Build Debug APK
+        run: ./gradlew assembleDebug --no-daemon --stacktrace -Pandroid.overrideVersionCheck=true
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
