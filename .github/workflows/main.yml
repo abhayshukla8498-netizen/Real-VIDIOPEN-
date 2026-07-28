@@ -28,12 +28,29 @@ jobs:
         run: |
           sdkmanager --install "platforms;android-34" "build-tools;34.0.0" "platform-tools"
 
-      - name: Setup Configuration Files
+      - name: Setup Project Structure & Build
         run: |
-          # Clean old settings files
-          rm -f settings.gradle settings.gradle.kts
+          # 1. Agar root me build.gradle.kts nahi hai to root plugins build script banao
+          if [ ! -f "build.gradle.kts" ] && [ ! -f "build.gradle" ]; then
+            cat << 'EOF' > build.gradle.kts
+            plugins {
+                alias(libs.plugins.android.application) apply false
+                alias(libs.plugins.kotlin.compose) apply false
+            }
+            EOF
+          fi
 
-          # Root project settings ONLY (NO :app module inclusion)
+          # 2. Agar app/ directory nahi hai to banao aur files wahan move karo
+          if [ ! -d "app" ]; then
+            mkdir -p app
+            # Move source files into app folder if present at root
+            [ -d "src" ] && mv src app/
+            [ -f "build.gradle.kts" ] && [ -f "app/build.gradle.kts" ] || ( [ -f "build.gradle.kts" ] && mv build.gradle.kts app/ )
+            [ -f "proguard-rules.pro" ] && mv proguard-rules.pro app/
+          fi
+
+          # 3. Clean and recreate settings.gradle.kts with :app module
+          rm -f settings.gradle settings.gradle.kts
           cat << 'EOF' > settings.gradle.kts
           pluginManagement {
               repositories {
@@ -50,23 +67,20 @@ jobs:
               }
           }
           rootProject.name = "NovaPlay"
+          include(":app")
           EOF
 
-          # Setup local properties & environment variables
+          # 4. Setup environment properties
           touch local.properties
           echo "sdk.dir=$ANDROID_HOME" > local.properties
           echo "GEMINI_API_KEY=dummy_key" > .env
 
-          # Download Gradle Wrapper
+          # 5. Generate Wrapper
           gradle wrapper --gradle-version 8.4
           chmod +x gradlew
 
-      - name: Build Debug APK
-        run: |
-          ./gradlew assembleDebug \
-            --no-daemon \
-            -Pandroid.overrideVersionCheck=true \
-            -Pandroid.suppressUnsupportedCompileSdk=36
+          # 6. Execute Build
+          ./gradlew :app:assembleDebug --no-daemon -Pandroid.overrideVersionCheck=true -Pandroid.suppressUnsupportedCompileSdk=36
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
