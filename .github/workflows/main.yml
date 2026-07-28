@@ -21,23 +21,32 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Create Dummy local.properties and .env
+      - name: Find Project Directory & Build
         run: |
+          # Dhoondo ki settings.gradle ya settings.gradle.kts kahan hai
+          SETTINGS_FILE=$(find . -maxdepth 3 -name "settings.gradle*" | head -n 1)
+          if [ -z "$SETTINGS_FILE" ]; then
+            echo "Error: Could not find settings.gradle in repository!"
+            exit 1
+          fi
+          
+          # Project dir me jao
+          PROJECT_DIR=$(dirname "$SETTINGS_FILE")
+          echo "Found project directory at: $PROJECT_DIR"
+          cd "$PROJECT_DIR"
+          
+          # Create dummy environment files
           touch local.properties
           echo "GEMINI_API_KEY=dummy_key" > .env
+          
+          # Generate Wrapper and Build APK
+          gradle wrapper
+          chmod +x gradlew
+          ./gradlew assembleDebug --stacktrace
 
-      - name: Generate Gradle Wrapper
-        run: gradle wrapper
-
-      - name: Grant execute permission for gradlew
-        run: chmod +x gradlew
-
-      - name: Build APK with Gradle
-        run: ./gradlew assembleDebug --stacktrace
-
-      - name: Upload APK Artifact
+      - name: Find and Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: NovaPlay-vidiopen-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          path: '/**/app/build/outputs/apk/debug/*.apk'
           
