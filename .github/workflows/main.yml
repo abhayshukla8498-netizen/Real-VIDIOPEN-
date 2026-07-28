@@ -76,10 +76,11 @@ jobs:
           echo "sdk.dir=$ANDROID_HOME" > local.properties
           echo "GEMINI_API_KEY=dummy_key" > .env
 
-          # 5. Generate Wrapper & Build APK
-          gradle wrapper --gradle-version 8.4
+          # 5. Generate Wrapper with Gradle 8.7
+          gradle wrapper --gradle-version 8.7
           chmod +x gradlew
 
+          # 6. Execute Build
           if [ -d "app" ]; then
             ./gradlew :app:assembleDebug --no-daemon -Pandroid.overrideVersionCheck=true -Pandroid.suppressUnsupportedCompileSdk=36
           else
