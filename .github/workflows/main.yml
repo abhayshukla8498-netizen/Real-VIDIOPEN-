@@ -21,35 +21,36 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Setup Project Files
-        run: |
-          # Check if 'app' directory exists
-          if [ -d "app" ]; then
-            MODULE_INCLUDE='include(":app")'
-          else
-            MODULE_INCLUDE=''
-          fi
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
 
+      - name: Install Android SDK Components
+        run: |
+          sdkmanager --install "platforms;android-36" "build-tools;36.0.0" "platform-tools"
+
+      - name: Setup Project & Config Files
+        run: |
           # Create settings.gradle.kts if missing
           if [ ! -f "settings.gradle.kts" ] && [ ! -f "settings.gradle" ]; then
             echo 'pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }' > settings.gradle.kts
             echo 'dependencyResolutionManagement { repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS); repositories { google(); mavenCentral() } }' >> settings.gradle.kts
             echo 'rootProject.name = "NovaPlay"' >> settings.gradle.kts
-            if [ -n "$MODULE_INCLUDE" ]; then
-              echo "$MODULE_INCLUDE" >> settings.gradle.kts
+            if [ -d "app" ]; then
+              echo 'include(":app")' >> settings.gradle.kts
             fi
           fi
 
-          # Create environment files
+          # Environment files setup
           touch local.properties
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
           echo "GEMINI_API_KEY=dummy_key" > .env
 
-          # Generate Wrapper and make executable
-          gradle wrapper
+          # Generate Gradle Wrapper
+          gradle wrapper --gradle-version 8.7
           chmod +x gradlew
 
       - name: Build APK with Gradle
-        run: ./gradlew assembleDebug --stacktrace
+        run: ./gradlew assembleDebug --no-daemon --stacktrace
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
