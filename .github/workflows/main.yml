@@ -35,9 +35,6 @@ jobs:
             echo 'pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }' > settings.gradle.kts
             echo 'dependencyResolutionManagement { repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS); repositories { google(); mavenCentral() } }' >> settings.gradle.kts
             echo 'rootProject.name = "NovaPlay"' >> settings.gradle.kts
-            if [ -d "app" ]; then
-              echo 'include(":app")' >> settings.gradle.kts
-            fi
           fi
 
           # Environment files setup
@@ -45,15 +42,14 @@ jobs:
           echo "sdk.dir=$ANDROID_HOME" > local.properties
           echo "GEMINI_API_KEY=dummy_key" > .env
 
-          # Download clean Gradle Wrapper
+          # Download Gradle Wrapper
           gradle wrapper --gradle-version 8.4
           chmod +x gradlew
 
       - name: Build Debug APK
         run: |
-          ./gradlew :app:assembleDebug \
+          ./gradlew assembleDebug \
             --no-daemon \
-            --info \
             -Pandroid.overrideVersionCheck=true \
             -Pandroid.suppressUnsupportedCompileSdk=36
 
