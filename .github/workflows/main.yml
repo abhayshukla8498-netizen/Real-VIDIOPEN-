@@ -28,34 +28,7 @@ jobs:
         run: |
           sdkmanager --install "platforms;android-34" "build-tools;34.0.0" "platform-tools"
 
-      - name: Generate Root Build File
-        run: |
-          if [ ! -f "build.gradle.kts" ]; then
-            echo 'plugins { alias(libs.plugins.android.application) apply false; alias(libs.plugins.kotlin.compose) apply false }' > build.gradle.kts
-          fi
-
-      - name: Move Files to App Directory
-        run: |
-          mkdir -p app
-          if [ -d "src" ]; then
-            mv src app/
-          fi
-          if [ -f "build.gradle.kts" ] && [ ! -f "app/build.gradle.kts" ]; then
-            cp build.gradle.kts app/build.gradle.kts
-          fi
-          if [ -f "proguard-rules.pro" ]; then
-            cp proguard-rules.pro app/proguard-rules.pro
-          fi
-
-      - name: Create Settings File
-        run: |
-          rm -f settings.gradle settings.gradle.kts
-          echo 'pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }' > settings.gradle.kts
-          echo 'dependencyResolutionManagement { repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS); repositories { google(); mavenCentral() } }' >> settings.gradle.kts
-          echo 'rootProject.name = "NovaPlay"' >> settings.gradle.kts
-          echo 'include(":app")' >> settings.gradle.kts
-
-      - name: Setup Properties
+      - name: Setup Environment Properties
         run: |
           touch local.properties
           echo "sdk.dir=$ANDROID_HOME" > local.properties
@@ -65,11 +38,11 @@ jobs:
         run: |
           gradle wrapper --gradle-version 8.4
           chmod +x gradlew
-          ./gradlew :app:assembleDebug --no-daemon -Pandroid.overrideVersionCheck=true -Pandroid.suppressUnsupportedCompileSdk=36
+          ./gradlew assembleDebug --no-daemon -Pandroid.overrideVersionCheck=true -Pandroid.suppressUnsupportedCompileSdk=36
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: NovaPlay-vidiopen-debug-apk
-          path: 'app/build/outputs/apk/debug/*.apk'
+          path: '**/*.apk'
           
