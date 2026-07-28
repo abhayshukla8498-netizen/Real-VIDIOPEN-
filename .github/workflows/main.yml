@@ -15,10 +15,80 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Check Repository Structure
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK Components
         run: |
-          echo "=== ROOT FILES ==="
-          ls -la
-          echo "=== FINDING ALL GRADLE AND KOTLIN FILES ==="
-          find . -maxdepth 4 -not -path '*/.*'
+          sdkmanager --install "platforms;android-34" "build-tools;34.0.0" "platform-tools"
+
+      - name: Extract ZIP File & Build
+        run: |
+          # 1. Unzip the novaplay.zip file
+          if [ -f "novaplay.zip" ]; then
+            echo "Unzipping novaplay.zip..."
+            unzip -o novaplay.zip
+          fi
+
+          # 2. Dhoondo ki app/build.gradle.kts kahan extract hua
+          GRADLE_FILE=$(find . -name "build.gradle.kts" -o -name "build.gradle" | head -n 1)
+          
+          if [ -n "$GRADLE_FILE" ]; then
+            TARGET_DIR=$(dirname "$GRADLE_FILE")
+            if [ "$(basename "$TARGET_DIR")" = "app" ]; then
+              cd "$TARGET_DIR/.."
+            else
+              cd "$TARGET_DIR"
+            fi
+          fi
+
+          # 3. Create fresh settings.gradle.kts
+          rm -f settings.gradle settings.gradle.kts
+          cat << 'EOF' > settings.gradle.kts
+          pluginManagement {
+              repositories {
+                  google()
+                  mavenCentral()
+                  gradlePluginPortal()
+              }
+          }
+          dependencyResolutionManagement {
+              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+          rootProject.name = "NovaPlay"
+          if (file("app").exists()) {
+              include(":app")
+          }
+          EOF
+
+          # 4. Setup environment properties
+          touch local.properties
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
+          echo "GEMINI_API_KEY=dummy_key" > .env
+
+          # 5. Generate Wrapper & Build APK
+          gradle wrapper --gradle-version 8.4
+          chmod +x gradlew
+
+          if [ -d "app" ]; then
+            ./gradlew :app:assembleDebug --no-daemon -Pandroid.overrideVersionCheck=true -Pandroid.suppressUnsupportedCompileSdk=36
+          else
+            ./gradlew assembleDebug --no-daemon -Pandroid.overrideVersionCheck=true -Pandroid.suppressUnsupportedCompileSdk=36
+          fi
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: NovaPlay-vidiopen-debug-apk
+          path: '**/*.apk'
           
