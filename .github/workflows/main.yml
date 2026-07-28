@@ -33,7 +33,7 @@ jobs:
           # Clean up old settings file
           rm -f settings.gradle settings.gradle.kts
 
-          # Generate clean and valid settings.gradle.kts
+          # Generate single-project settings file WITHOUT :app module
           cat << 'EOF' > settings.gradle.kts
           pluginManagement {
               repositories {
@@ -50,7 +50,6 @@ jobs:
               }
           }
           rootProject.name = "NovaPlay"
-          include(":app")
           EOF
 
           # Environment files setup
@@ -62,12 +61,12 @@ jobs:
           gradle wrapper --gradle-version 8.4
           chmod +x gradlew
 
-          # Build Debug APK
-          ./gradlew :app:assembleDebug --no-daemon -Pandroid.overrideVersionCheck=true -Pandroid.suppressUnsupportedCompileSdk=36
+          # Direct Root assembleDebug command
+          ./gradlew assembleDebug --no-daemon -Pandroid.overrideVersionCheck=true -Pandroid.suppressUnsupportedCompileSdk=36
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: NovaPlay-vidiopen-debug-apk
-          path: 'app/build/outputs/apk/debug/*.apk'
+          path: '**/*.apk'
           
